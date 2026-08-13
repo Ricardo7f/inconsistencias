@@ -1,0 +1,2318 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Filtro de Inconsistências por Equipe</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --canvas: #F9F9FB;
+  --white: #ffffff;
+  --ink: #1f2937;
+  --ink-soft: #6b7280;
+  --ink-faint: #9ca3af;
+  --line: #e5e7eb;
+  --line-soft: #f3f4f6;
+  --dark: #111827;
+  --dark-hover: #1f2937;
+  --accent: #2563eb;
+  --accent-soft: #eff6ff;
+  --amber: #fbbf24;
+  --amber-deep: #f59e0b;
+  --rose: #f43f5e;
+  --rose-soft: #fff1f2;
+  --rose-deep: #e11d48;
+  --emerald: #10b981;
+  --emerald-soft: #ecfdf5;
+  --warn: var(--amber-deep);
+  --ok: var(--emerald);
+  --shadow-card: 0 2px 6px rgba(20, 20, 43, 0.08);
+  --shadow-card-hover: 0 6px 16px rgba(20, 20, 43, 0.14);
+  --shadow-floating: 0 8px 24px rgba(20, 20, 43, 0.10), 0 1px 2px rgba(20, 20, 43, 0.06);
+  --radius-lg: 18px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  --font: "Inter", "Segoe UI", system-ui, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.15); border-radius: 8px; }
+
+header {
+  padding: 40px 24px 28px;
+  max-width: 960px;
+  margin: 0 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.header-text { min-width: 0; }
+
+.logout-btn {
+  background: var(--white);
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-family: var(--font);
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 100px;
+  cursor: pointer;
+  white-space: nowrap;
+  margin-top: 2px;
+  box-shadow: var(--shadow-card);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.logout-btn:hover { background: var(--rose-soft); border-color: #fecdd3; color: var(--rose-deep); }
+
+.eyebrow {
+  font-family: var(--font);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+h1 {
+  font-size: clamp(24px, 3.4vw, 32px);
+  font-weight: 700;
+  margin: 8px 0 4px;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  color: var(--ink);
+}
+
+header p {
+  color: var(--ink-soft);
+  max-width: 600px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 24px 80px;
+  display: grid;
+  gap: 16px;
+}
+
+.panel {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 26px 28px;
+  box-shadow: var(--shadow-card);
+}
+
+.panel h2 {
+  font-size: 14.5px;
+  font-weight: 600;
+  margin: 0 0 4px;
+  color: var(--ink);
+}
+
+.panel h3 {
+  font-size: 14.5px;
+  font-weight: 600;
+  margin: 0 0 14px;
+  color: var(--ink);
+}
+
+.panel .hint {
+  color: var(--ink-soft);
+  font-size: 13px;
+  margin: 0 0 16px;
+  line-height: 1.5;
+}
+
+/* --- Data status bar --- */
+.data-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.data-status-left {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+  flex-shrink: 0;
+}
+
+.status-dot.ok { background: var(--emerald); }
+.status-dot.warn { background: var(--amber-deep); }
+.status-dot.loading { background: var(--accent); animation: pulse 1.1s infinite; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.data-status-text {
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.data-status-text b { color: var(--ink); font-weight: 600; }
+
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-family: var(--font);
+  font-size: 12.5px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  padding: 0;
+}
+.link-btn:hover { text-decoration: underline; }
+
+.admin-block {
+  display: none;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.admin-block.open { display: block; }
+
+button.primary {
+  background: var(--dark);
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+  white-space: nowrap;
+}
+
+button.primary:hover { background: var(--dark-hover); }
+button.primary:active { transform: scale(0.98); }
+button.primary:disabled { background: #d1d5db; cursor: not-allowed; }
+
+.dropzone {
+  border: 1.5px dashed var(--line);
+  border-radius: var(--radius-md);
+  padding: 22px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  background: var(--canvas);
+}
+
+.dropzone:hover, .dropzone.drag {
+  border-color: var(--amber-deep);
+  background: #fffbeb;
+}
+
+.dropzone input { display: none; }
+
+.dropzone .label {
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.dropzone .filename {
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
+.counts {
+  display: flex;
+  gap: 18px;
+  margin-top: 14px;
+  font-family: var(--font);
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  flex-wrap: wrap;
+}
+
+.counts b { color: var(--ink); }
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--line-soft);
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  padding: 4px 10px;
+  border-radius: 100px;
+}
+
+.groups-block { margin-top: 0; }
+.groups-block.no-top-border { margin-top: 0; padding-top: 0; border-top: none; }
+
+.groups-empty {
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+.mini-btn {
+  border: 1px solid var(--line);
+  background: var(--white);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 100px;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: var(--shadow-card);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mini-btn:hover { background: var(--line-soft); box-shadow: var(--shadow-card-hover); }
+.mini-btn.del:hover, .mini-btn.lib-modal-danger:hover { background: var(--rose-deep); border-color: var(--rose-deep); color: #fff; }
+.mini-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.folder-add-team {
+  display: flex;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.folder-add-team input[type="text"] {
+  flex: 1;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--white);
+}
+
+.folder-add-team input[type="text"]:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.lib-use-btn {
+  background: var(--dark);
+  color: #fff;
+  border: 1px solid var(--dark);
+  margin-top: 4px;
+}
+
+.lib-use-btn:hover { background: var(--dark-hover); }
+
+/* ---------- Biblioteca de pastas — grade estilo explorer ---------- */
+.lib-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.lib-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1px;
+  font-family: var(--font);
+  font-size: 13.5px;
+  min-width: 0;
+}
+
+.lib-crumb {
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 8px;
+  color: var(--ink-faint);
+  font-family: var(--font);
+  font-weight: 500;
+  cursor: pointer;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.lib-crumb:hover { color: var(--ink-soft); background: var(--line-soft); }
+.lib-crumb.current { color: var(--ink); font-weight: 600; cursor: default; }
+.lib-crumb.current:hover { background: none; }
+
+.lib-crumb.drag-over {
+  background: var(--accent-soft);
+  outline: 1px solid #bfdbfe;
+  outline-offset: -1px;
+  color: var(--accent);
+}
+
+.lib-crumb-sep { color: var(--ink-faint); font-size: 12px; padding: 0 1px; }
+
+#newFolderBtn { flex-shrink: 0; }
+
+.lib-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.lib-card {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--white);
+  padding: 12px 14px;
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+  transition: border-color 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+
+.lib-card:hover { border-color: #d1d5db; box-shadow: var(--shadow-card-hover); }
+.lib-card.dragging { opacity: 0.4; }
+
+.lib-card.drag-over {
+  background: var(--accent-soft);
+  border-color: #bfdbfe;
+  outline: 1px solid #bfdbfe;
+  outline-offset: -1px;
+}
+
+.lib-card .folder-ico { flex-shrink: 0; margin-top: 1px; }
+
+.lib-card-info { min-width: 0; flex: 1; }
+
+.lib-card-name {
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--ink);
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  display: block;
+  line-height: 1.35;
+}
+
+.lib-card-meta {
+  font-family: var(--font);
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  margin-top: 3px;
+}
+
+.lib-rename-input {
+  font-family: var(--font);
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--ink);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 1px 5px;
+  background: #fff;
+  width: 100%;
+}
+
+.lib-rename-input:focus { outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+
+.lib-card-actions {
+  display: none;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 100px;
+  box-shadow: var(--shadow-card);
+}
+
+.lib-card:hover .lib-card-actions { display: flex; }
+
+.lib-card-actions button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--ink-faint);
+  width: 24px;
+  height: 24px;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 100px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.lib-card-actions button:hover { color: var(--ink); background: var(--line-soft); }
+.lib-card-actions button.lib-del:hover { color: var(--rose-deep); background: var(--rose-soft); }
+
+.lib-empty {
+  font-size: 13px;
+  color: var(--ink-faint);
+  padding: 20px 2px;
+  text-align: center;
+}
+
+/* --- Painel de equipes de uma pasta-folha --- */
+.lib-teams {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.lib-teams-heading {
+  font-family: var(--font);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 10px;
+}
+
+.folder-teams-list { padding: 0 0 4px; }
+
+/* --- Modal de confirmação de exclusão --- */
+.lib-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 16px;
+}
+
+.lib-modal {
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: var(--shadow-floating);
+  width: 100%;
+  max-width: 340px;
+  padding: 20px;
+}
+
+.lib-modal-title {
+  font-weight: 700;
+  font-size: 14.5px;
+  color: var(--rose-deep);
+  margin-bottom: 8px;
+}
+
+.lib-modal-title.lib-modal-title-plain { color: var(--ink); }
+
+.lib-modal-text {
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.lib-modal-text:empty { display: none; }
+
+.lib-modal-text b { color: var(--ink); font-weight: 600; }
+
+.lib-modal-input {
+  width: 100%;
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-family: var(--font);
+  font-size: 13.5px;
+  color: var(--ink);
+  background: var(--canvas);
+}
+
+.lib-modal-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  background: var(--white);
+}
+
+.lib-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.lib-modal-danger {
+  background: var(--rose);
+  color: #fff;
+  border-color: var(--rose);
+}
+
+.lib-modal-danger:hover { background: var(--rose-deep); }
+
+#status.lib-status {
+  font-family: var(--font);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--amber-deep);
+  min-height: 16px;
+  margin: 16px 0 0;
+}
+
+#status.lib-status:empty { display: none; }
+
+#results-panel { display: none; }
+
+.results-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.results-head h2 { margin: 0; }
+
+.results-meta {
+  font-family: var(--font);
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+}
+
+thead th {
+  background: var(--line-soft);
+  color: var(--ink-soft);
+  text-align: left;
+  padding: 10px 12px;
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+tbody td {
+  padding: 10px 12px;
+  border-top: 1px solid var(--line-soft);
+  vertical-align: top;
+  max-width: 320px;
+  color: var(--ink);
+}
+
+tbody tr:nth-child(even) { background: #fbfbfc; }
+
+td.equipe {
+  font-family: var(--font);
+  color: var(--accent);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--ink-faint);
+}
+
+.empty-state .big {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+
+/* --- Cards de inconsistência agrupados por descrição --- */
+.incons-cards {
+  display: grid;
+  gap: 10px;
+}
+
+.incons-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--white);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+
+.incons-card-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font);
+  color: var(--ink);
+}
+
+.incons-card-head:hover { background: var(--canvas); }
+
+.incons-card-title {
+  flex: 1;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.incons-card-count {
+  font-family: var(--font);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 3px 10px;
+  border-radius: 100px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.incons-toggle {
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  color: var(--ink-faint);
+  flex-shrink: 0;
+  transition: transform .15s ease, color .15s ease, border-color .15s ease;
+}
+
+.incons-card.open .incons-toggle {
+  transform: rotate(45deg);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.incons-card-body { border-top: 1px solid var(--line-soft); }
+.incons-card-body .table-wrap { border: none; border-radius: 0; }
+
+/* --- Serviços executados dentro de cada inconsistência --- */
+.servico-subgroups {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  background: var(--canvas);
+}
+
+.servico-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  overflow: hidden;
+}
+
+.servico-card .incons-card-head { padding: 11px 14px; }
+.servico-card .incons-card-title {
+  font-size: 12.5px;
+  font-family: var(--font);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+/* --- Checkbox: marcar linha como corrigida --- */
+th.check-col, td.check-col {
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
+  text-align: center;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+td.check-col input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--emerald);
+}
+
+tbody tr.row-marked td { background: var(--emerald-soft); color: var(--ink-soft); }
+tbody tr.row-marked td.equipe { color: #059669; }
+
+footer {
+  text-align: center;
+  padding: 20px;
+  font-family: var(--font);
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}
+
+@media (max-width: 600px) {
+  .panel { padding: 20px; }
+}
+
+/* --- Login screen --- */
+.login-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--canvas);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+
+.login-box {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 40px 36px;
+  width: 100%;
+  max-width: 340px;
+  text-align: center;
+  box-shadow: var(--shadow-floating);
+}
+
+.login-eyebrow {
+  font-family: var(--font);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 10px;
+}
+
+.login-title {
+  font-size: 21px;
+  font-weight: 700;
+  margin: 0 0 24px;
+  color: var(--ink);
+}
+
+.login-box input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-family: var(--font);
+  font-size: 14px;
+  margin-bottom: 12px;
+  background: var(--canvas);
+}
+
+.login-box input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  background: var(--white);
+}
+
+.login-box button {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.login-error {
+  font-size: 12.5px;
+  color: var(--rose-deep);
+  min-height: 16px;
+  margin: 0 0 10px;
+}
+</style>
+</head>
+<body>
+
+<div id="loginScreen" class="login-screen">
+  <div class="login-box">
+    <div class="login-eyebrow">Iguá Sergipe · Inconsistências</div>
+    <h1 class="login-title">Acesso restrito</h1>
+    <p class="login-error" id="loginError"></p>
+    <input type="email" id="loginUser" placeholder="E-mail" autocomplete="username">
+    <input type="password" id="loginPass" placeholder="Senha" autocomplete="current-password">
+    <button class="primary" id="loginBtn">Entrar</button>
+  </div>
+</div>
+
+<div id="appContent" style="display:none;">
+<header>
+  <div class="header-text">
+    <div class="eyebrow">Iguá Sergipe · Inconsistências</div>
+    <h1>Filtro de Inconsistências por Equipe</h1>
+  </div>
+  <button class="logout-btn" id="logoutBtn" title="Sair da sua conta">Sair</button>
+</header>
+
+<main>
+
+  <section class="panel">
+    <h2>Status da base compartilhada</h2>
+    <div class="data-status">
+      <div class="data-status-left">
+        <span class="status-dot loading" id="statusDot"></span>
+        <span class="data-status-text" id="dataStatusText">Carregando dados...</span>
+      </div>
+    </div>
+
+    <div class="admin-block" id="adminBlock">
+      <div class="dropzone" id="dropzone" tabindex="0">
+        <input type="file" id="fileInput" accept=".xlsx,.xls">
+        <div class="label" id="dzLabel">Clique para escolher o arquivo .xlsx, ou arraste aqui</div>
+        <div class="filename" id="dzFilename"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="groups-block no-top-border">
+      <div class="lib-toolbar">
+        <div class="lib-breadcrumb" id="libBreadcrumb"></div>
+        <button class="mini-btn" id="newFolderBtn">+ Nova pasta</button>
+      </div>
+      <div class="lib-grid" id="libGrid"></div>
+      <div class="lib-teams" id="libTeams" style="display:none;">
+        <p class="lib-teams-heading">Equipes desta pasta</p>
+        <div class="folder-teams-list" id="libTeamsList"></div>
+        <div class="folder-add-team">
+          <input type="text" id="libAddTeamInput" placeholder="Adicionar equipe(s)">
+          <button class="mini-btn" id="libAddTeamBtn">Adicionar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="lib-modal-overlay" id="libDeleteOverlay" style="display:none;">
+      <div class="lib-modal">
+        <div class="lib-modal-title">⚠ Excluir pasta?</div>
+        <p class="lib-modal-text" id="libDeleteText"></p>
+        <div class="lib-modal-actions">
+          <button class="mini-btn" id="libDeleteCancel">Cancelar</button>
+          <button class="mini-btn lib-modal-danger" id="libDeleteConfirm">Excluir</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="lib-modal-overlay" id="libNewFolderOverlay" style="display:none;">
+      <div class="lib-modal">
+        <div class="lib-modal-title lib-modal-title-plain">Nova pasta</div>
+        <p class="lib-modal-text" id="libNewFolderContext"></p>
+        <input type="text" id="libNewFolderInput" class="lib-modal-input" placeholder="Nome da pasta" maxlength="120">
+        <div class="lib-modal-actions">
+          <button class="mini-btn" id="libNewFolderCancel">Cancelar</button>
+          <button class="mini-btn lib-use-btn" id="libNewFolderConfirm">Criar pasta</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="lib-modal-overlay" id="libRemoveTeamOverlay" style="display:none;">
+      <div class="lib-modal">
+        <div class="lib-modal-title">⚠ Remover equipe?</div>
+        <p class="lib-modal-text" id="libRemoveTeamText"></p>
+        <div class="lib-modal-actions">
+          <button class="mini-btn" id="libRemoveTeamCancel">Cancelar</button>
+          <button class="mini-btn lib-modal-danger" id="libRemoveTeamConfirm">Remover</button>
+        </div>
+      </div>
+    </div>
+
+    <p id="status" class="lib-status"></p>
+  </section>
+
+  <section class="panel" id="results-panel">
+    <div class="results-head">
+      <h2>Linhas encontradas</h2>
+      <span class="results-meta" id="resultsMeta"></span>
+    </div>
+    <div class="table-wrap" id="tableWrap">
+      <table id="resultsTable">
+        <thead><tr id="tableHead"></tr></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <div class="incons-cards" id="inconsCards" style="display:none;"></div>
+  </section>
+
+</main>
+
+<footer></footer>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getFirestore, doc, getDoc, setDoc, deleteDoc,
+  collection, getDocs, query, orderBy, onSnapshot,
+  writeBatch, serverTimestamp, addDoc
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {
+  getAuth, signInWithEmailAndPassword, signOut,
+  setPersistence, inMemoryPersistence
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDzPpBgJrsthbdLQZHw43REDOK_isvU3Mw",
+  authDomain: "inconsistencias-adaee.firebaseapp.com",
+  projectId: "inconsistencias-adaee",
+  storageBucket: "inconsistencias-adaee.firebasestorage.app",
+  messagingSenderId: "587969512858",
+  appId: "1:587969512858:web:404650ef72b21315a9a623"
+};
+
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+const auth = getAuth(fbApp);
+setPersistence(auth, inMemoryPersistence).catch(() => {});
+
+// --- Admin status now comes from Firestore: collection "usuarios", one
+// document per user with the document ID equal to the user's UID, and a
+// boolean field "admin". Example: usuarios/<uid> => { admin: true }
+const USUARIOS_COLLECTION = collection(db, "usuarios");
+let currentUserIsAdmin = false; // refreshed right after login, see tryLogin()
+
+function isAdmin() {
+  return currentUserIsAdmin;
+}
+
+async function refreshAdminStatus() {
+  currentUserIsAdmin = false;
+  if (!currentUser) return;
+  try {
+    const snap = await getDoc(doc(USUARIOS_COLLECTION, currentUser.uid));
+    currentUserIsAdmin = !!(snap.exists() && snap.data().admin === true);
+  } catch (err) {
+    currentUserIsAdmin = false;
+  }
+}
+
+const CHUNK_SIZE = 300;
+const META_DOC = doc(db, "inconsistencias_meta", "current");
+const ROWS_COLLECTION = collection(db, "inconsistencias_rows");
+const PASTAS_COLLECTION = collection(db, "pastas");
+
+let sheetRows = [];
+let headers = [];
+let equipeColIndex = -1;
+let descColIndex = -1;
+let servicoColIndex = -1;
+let pastasCache = {}; // id -> { nome, parentId, equipes: string[], criadoPor, criadoPorEmail }
+let currentUser = null; // { uid, email } of the logged-in user
+let currentFolderId = null; // id of the folder currently being browsed (null = root of the library)
+let draggingFolderId = null; // id of the folder currently being dragged, if any
+let renamingFolderId = null; // id of the folder currently showing an inline rename input
+let pendingDeleteFolderId = null; // id of the folder awaiting confirmation in the delete modal
+let pendingRemoveTeam = null; // { folderId, team } awaiting confirmation in the remove-team modal
+let selectedTeams = []; // teams currently loaded for filtering, picked from a folder
+let selectedFolderId = null; // id of the folder currently selected for filtering (double-click)
+let selectedFolderName = ''; // display name of that folder
+
+// Columns matched by normalized name (accents stripped) that should never be shown as a table column
+const HIDDEN_COLUMNS = ['PARECER', 'LIGACAO'];
+
+const statusDot = document.getElementById('statusDot');
+const dataStatusText = document.getElementById('dataStatusText');
+const adminBlock = document.getElementById('adminBlock');
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const dzFilename = document.getElementById('dzFilename');
+const statusEl = document.getElementById('status');
+const resultsPanel = document.getElementById('results-panel');
+const resultsMeta = document.getElementById('resultsMeta');
+const tableHead = document.getElementById('tableHead');
+const tableBody = document.getElementById('tableBody');
+const tableWrap = document.getElementById('tableWrap');
+const inconsCards = document.getElementById('inconsCards');
+const libBreadcrumb = document.getElementById('libBreadcrumb');
+const libGrid = document.getElementById('libGrid');
+const newFolderBtn = document.getElementById('newFolderBtn');
+const libTeams = document.getElementById('libTeams');
+const libTeamsList = document.getElementById('libTeamsList');
+const libAddTeamInput = document.getElementById('libAddTeamInput');
+const libAddTeamBtn = document.getElementById('libAddTeamBtn');
+const libDeleteOverlay = document.getElementById('libDeleteOverlay');
+const libDeleteText = document.getElementById('libDeleteText');
+const libDeleteCancel = document.getElementById('libDeleteCancel');
+const libDeleteConfirm = document.getElementById('libDeleteConfirm');
+const libNewFolderOverlay = document.getElementById('libNewFolderOverlay');
+const libNewFolderContext = document.getElementById('libNewFolderContext');
+const libNewFolderInput = document.getElementById('libNewFolderInput');
+const libNewFolderCancel = document.getElementById('libNewFolderCancel');
+const libNewFolderConfirm = document.getElementById('libNewFolderConfirm');
+const libRemoveTeamOverlay = document.getElementById('libRemoveTeamOverlay');
+const libRemoveTeamText = document.getElementById('libRemoveTeamText');
+const libRemoveTeamCancel = document.getElementById('libRemoveTeamCancel');
+const libRemoveTeamConfirm = document.getElementById('libRemoveTeamConfirm');
+
+const loginScreen = document.getElementById('loginScreen');
+const appContent = document.getElementById('appContent');
+const loginUser = document.getElementById('loginUser');
+const loginPass = document.getElementById('loginPass');
+const loginBtn = document.getElementById('loginBtn');
+const loginError = document.getElementById('loginError');
+const logoutBtn = document.getElementById('logoutBtn');
+
+async function tryLogin() {
+  loginError.textContent = '';
+  loginBtn.disabled = true;
+  loginBtn.textContent = 'Entrando...';
+  try {
+    const cred = await signInWithEmailAndPassword(auth, loginUser.value.trim(), loginPass.value);
+    currentUser = { uid: cred.user.uid, email: cred.user.email };
+    loginScreen.style.display = 'none';
+    appContent.style.display = 'block';
+    await refreshAdminStatus();
+    adminBlock.classList.toggle('open', isAdmin());
+    loadSharedData();
+    subscribeFolders();
+  } catch (err) {
+    loginError.textContent = 'E-mail ou senha incorretos.';
+    loginPass.value = '';
+  } finally {
+    loginBtn.disabled = false;
+    loginBtn.textContent = 'Entrar';
+  }
+}
+
+async function doLogout() {
+  logoutBtn.disabled = true;
+  try {
+    if (foldersUnsub) { foldersUnsub(); foldersUnsub = null; }
+    await signOut(auth);
+  } catch (err) {
+    // Mesmo se o signOut falhar, seguimos limpando o estado local abaixo.
+  }
+  currentUser = null;
+  currentUserIsAdmin = false;
+  pastasCache = {};
+  currentFolderId = null;
+  sheetRows = [];
+  headers = [];
+  adminBlock.classList.remove('open');
+  resultsPanel.style.display = 'none';
+  libDeleteOverlay.style.display = 'none';
+  libNewFolderOverlay.style.display = 'none';
+  libRemoveTeamOverlay.style.display = 'none';
+  pendingDeleteFolderId = null;
+  pendingRemoveTeam = null;
+  selectedTeams = [];
+  selectedFolderId = null;
+  selectedFolderName = '';
+  loginUser.value = '';
+  loginPass.value = '';
+  loginError.textContent = '';
+  appContent.style.display = 'none';
+  loginScreen.style.display = 'flex';
+  logoutBtn.disabled = false;
+}
+
+loginBtn.addEventListener('click', tryLogin);
+loginPass.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryLogin(); });
+loginUser.addEventListener('keydown', (e) => { if (e.key === 'Enter') loginPass.focus(); });
+logoutBtn.addEventListener('click', doLogout);
+
+function findEquipeColumn(hdrs) {
+  const normalized = hdrs.map(h => (h || '').toString().trim().toUpperCase());
+  let idx = normalized.findIndex(h => h === 'EQUIPE');
+  if (idx === -1) idx = normalized.findIndex(h => h.includes('EQUIPE'));
+  return idx;
+}
+
+function normalizeHeader(h) {
+  return (h || '').toString().trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function findDescColumn(hdrs) {
+  const normalized = hdrs.map(normalizeHeader);
+  let idx = normalized.findIndex(h => h === 'INCONSISTENCIA');
+  if (idx === -1) idx = normalized.findIndex(h => h.includes('INCONSISTENCIA'));
+  if (idx === -1) idx = normalized.findIndex(h => h.includes('DESCRICAO'));
+  return idx;
+}
+
+function findServicoColumn(hdrs) {
+  const normalized = hdrs.map(normalizeHeader);
+  let idx = normalized.findIndex(h => h.includes('SERVICO') && h.includes('EXECUTADO'));
+  if (idx === -1) idx = normalized.findIndex(h => h.includes('SERVICO'));
+  return idx;
+}
+
+// ---------- "Marcar como corrigido" persistence (local ao navegador) ----------
+const MARKED_ROWS_KEY = 'inconsistencias_linhas_marcadas_v1';
+
+function loadMarkedRows() {
+  try {
+    const raw = localStorage.getItem(MARKED_ROWS_KEY);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch (e) {
+    return new Set();
+  }
+}
+
+function saveMarkedRows() {
+  try {
+    localStorage.setItem(MARKED_ROWS_KEY, JSON.stringify(Array.from(markedRows)));
+  } catch (e) {
+    // Ignora falhas de armazenamento (ex.: modo privado)
+  }
+}
+
+let markedRows = loadMarkedRows();
+
+// Chave estável por conteúdo da linha, para identificar a mesma linha entre
+// carregamentos, independente da posição dela na planilha.
+function hashRowKey(row) {
+  const str = row.map(c => (c === undefined || c === null) ? '' : c.toString()).join('|');
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash * 31 + str.charCodeAt(i)) | 0;
+  }
+  return 'r' + hash;
+}
+
+function parseTeams(raw) {
+  if (!raw) return [];
+  const upper = raw.toUpperCase();
+  const matches = upper.match(/[A-Z]{2,6}\d{1,5}[A-Z]?/g) || [];
+  return Array.from(new Set(matches));
+}
+
+function escapeHtml(str) {
+  return str.replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+function setDotState(state) {
+  statusDot.className = 'status-dot ' + state;
+}
+
+// ---------- Load shared dataset from Firestore ----------
+async function loadSharedData() {
+  setDotState('loading');
+  dataStatusText.textContent = 'Carregando dados...';
+  try {
+    const metaSnap = await getDoc(META_DOC);
+    if (!metaSnap.exists()) {
+      setDotState('warn');
+      dataStatusText.textContent = 'Nenhuma planilha enviada ainda. Use "Enviar / atualizar planilha".';
+      headers = [];
+      sheetRows = [];
+      equipeColIndex = -1;
+      descColIndex = -1;
+      servicoColIndex = -1;
+      updateRunState();
+      return;
+    }
+    const meta = metaSnap.data();
+    headers = meta.headers || [];
+    equipeColIndex = findEquipeColumn(headers);
+    descColIndex = findDescColumn(headers);
+    servicoColIndex = findServicoColumn(headers);
+
+    const rowsQuery = query(ROWS_COLLECTION, orderBy('index'));
+    const rowsSnap = await getDocs(rowsQuery);
+    sheetRows = [];
+    rowsSnap.forEach(d => {
+      const chunk = d.data();
+      if (chunk.rowsJson) {
+        try {
+          const parsedRows = JSON.parse(chunk.rowsJson);
+          sheetRows.push(...parsedRows);
+        } catch (e) {
+          console.error('Falha ao ler bloco', d.id, e);
+        }
+      } else if (Array.isArray(chunk.rows)) {
+        // compatibilidade com formato antigo, caso exista
+        sheetRows.push(...chunk.rows);
+      }
+    });
+
+    const updatedAt = meta.updatedAt && meta.updatedAt.toDate ? meta.updatedAt.toDate() : null;
+    const dateStr = updatedAt ? updatedAt.toLocaleString('pt-BR') : 'data desconhecida';
+
+    if (equipeColIndex === -1) {
+      setDotState('warn');
+      dataStatusText.textContent = 'Planilha carregada, mas não encontrei a coluna "EQUIPE".';
+    } else {
+      setDotState('ok');
+      dataStatusText.textContent = sheetRows.length + ' linha(s) carregada(s) · atualizado em ' + dateStr;
+    }
+    updateRunState();
+  } catch (err) {
+    setDotState('warn');
+    dataStatusText.textContent = 'Erro ao carregar dados: ' + err.message;
+  }
+}
+
+// ---------- Admin: upload new spreadsheet ----------
+function handleFile(file) {
+  if (!file) return;
+
+  if (!isAdmin()) {
+    statusEl.textContent = 'Só uma conta admin pode enviar/atualizar a planilha.';
+    statusEl.style.color = 'var(--warn)';
+    return;
+  }
+
+  dzFilename.textContent = file.name;
+  statusEl.textContent = 'Lendo planilha...';
+  statusEl.style.color = 'var(--ink-soft)';
+
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, { type: 'array' });
+      const firstSheetName = wb.SheetNames[0];
+      const ws = wb.Sheets[firstSheetName];
+      const json = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+      if (!json.length) {
+        statusEl.textContent = 'A planilha parece estar vazia.';
+        statusEl.style.color = 'var(--warn)';
+        return;
+      }
+
+      const newHeaders = json[0].map(h => (h || '').toString().trim());
+      const newRows = json.slice(1).filter(row => row.some(cell => cell !== '' && cell !== null));
+      const eqIdx = findEquipeColumn(newHeaders);
+
+      if (eqIdx === -1) {
+        statusEl.textContent = 'Não encontrei uma coluna "EQUIPE" nessa planilha. Envio cancelado.';
+        statusEl.style.color = 'var(--warn)';
+        return;
+      }
+
+      statusEl.textContent = 'Enviando ' + newRows.length + ' linha(s) para o Firebase...';
+      statusEl.style.color = 'var(--ink-soft)';
+
+      await replaceSharedData(newHeaders, newRows);
+
+      statusEl.textContent = 'Base de dados atualizada para todos! (' + newRows.length + ' linhas)';
+      statusEl.style.color = 'var(--ok)';
+      await loadSharedData();
+    } catch (err) {
+      statusEl.textContent = 'Erro ao processar/enviar a planilha: ' + err.message;
+      statusEl.style.color = 'var(--warn)';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function replaceSharedData(newHeaders, newRows) {
+  // 1. Delete old chunks
+  const oldChunksSnap = await getDocs(ROWS_COLLECTION);
+  const oldDocs = [];
+  oldChunksSnap.forEach(d => oldDocs.push(d.ref));
+
+  for (let i = 0; i < oldDocs.length; i += 450) {
+    const batch = writeBatch(db);
+    oldDocs.slice(i, i + 450).forEach(ref => batch.delete(ref));
+    await batch.commit();
+  }
+
+  // 2. Write new chunks
+  const chunks = [];
+  for (let i = 0; i < newRows.length; i += CHUNK_SIZE) {
+    chunks.push(newRows.slice(i, i + CHUNK_SIZE));
+  }
+
+  for (let i = 0; i < chunks.length; i += 450) {
+    const batch = writeBatch(db);
+    chunks.slice(i, i + 450).forEach((chunkRows, offset) => {
+      const idx = i + offset;
+      const ref = doc(ROWS_COLLECTION, 'chunk_' + idx);
+      batch.set(ref, { index: idx, rowsJson: JSON.stringify(chunkRows) });
+    });
+    await batch.commit();
+  }
+
+  // 3. Write meta
+  await setDoc(META_DOC, {
+    headers: newHeaders,
+    totalRows: newRows.length,
+    updatedAt: serverTimestamp()
+  });
+}
+
+dropzone.addEventListener('click', () => fileInput.click());
+dropzone.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') fileInput.click();
+});
+fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+
+['dragenter', 'dragover'].forEach(evt => {
+  dropzone.addEventListener(evt, (e) => {
+    e.preventDefault();
+    dropzone.classList.add('drag');
+  });
+});
+['dragleave', 'drop'].forEach(evt => {
+  dropzone.addEventListener(evt, (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('drag');
+  });
+});
+dropzone.addEventListener('drop', (e) => {
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+});
+
+// ---------- Team paste + filter ----------
+// Não existe mais um botão "Filtrar" manual: assim que o usuário entra numa
+// pasta-folha (sem subpastas) que tenha equipes salvas, o filtro roda
+// sozinho. Isso é chamado sempre que a pasta atual, os dados da planilha,
+// ou a lista de equipes da pasta mudam.
+function autoApplyFolderFilter() {
+  if (!currentFolderId) {
+    selectedTeams = [];
+    selectedFolderId = null;
+    selectedFolderName = '';
+    resultsPanel.style.display = 'none';
+    return;
+  }
+
+  const f = pastasCache[currentFolderId];
+  const isLeaf = f && folderChildren(currentFolderId).length === 0;
+
+  if (!f || !isLeaf) {
+    selectedTeams = [];
+    selectedFolderId = null;
+    selectedFolderName = '';
+    resultsPanel.style.display = 'none';
+    return;
+  }
+
+  const teams = f.equipes || [];
+  selectedTeams = teams.slice();
+  selectedFolderId = currentFolderId;
+  selectedFolderName = f.nome || '';
+
+  if (!teams.length || !sheetRows.length || equipeColIndex === -1) {
+    resultsPanel.style.display = 'none';
+    return;
+  }
+
+  runFilter();
+}
+
+// Mantido por compatibilidade com chamadas existentes pelo código (upload
+// de planilha, exclusão de pasta etc.) — apenas reaplica o filtro atual.
+function updateRunState() {
+  autoApplyFolderFilter();
+}
+
+function buildRowTable(rows, visibleIndices) {
+  const table = document.createElement('table');
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+
+  const thCheck = document.createElement('th');
+  thCheck.className = 'check-col';
+  thCheck.textContent = '✓';
+  headRow.appendChild(thCheck);
+
+  visibleIndices.forEach(i => {
+    const th = document.createElement('th');
+    th.textContent = headers[i];
+    headRow.appendChild(th);
+  });
+  thead.appendChild(headRow);
+
+  const tbody = document.createElement('tbody');
+  rows.forEach(row => {
+    const tr = document.createElement('tr');
+    const key = hashRowKey(row);
+    if (markedRows.has(key)) tr.classList.add('row-marked');
+
+    const tdCheck = document.createElement('td');
+    tdCheck.className = 'check-col';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.title = 'Marcar como corrigido';
+    checkbox.checked = markedRows.has(key);
+    checkbox.addEventListener('change', () => {
+      if (checkbox.checked) {
+        markedRows.add(key);
+        tr.classList.add('row-marked');
+      } else {
+        markedRows.delete(key);
+        tr.classList.remove('row-marked');
+      }
+      saveMarkedRows();
+    });
+    tdCheck.appendChild(checkbox);
+    tr.appendChild(tdCheck);
+
+    visibleIndices.forEach(i => {
+      const td = document.createElement('td');
+      const val = row[i] !== undefined ? row[i] : '';
+      td.textContent = val;
+      if (i === equipeColIndex) td.classList.add('equipe');
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(thead);
+  table.appendChild(tbody);
+  return table;
+}
+
+function renderFlatTable(matchedRows, visibleIndices) {
+  tableHead.innerHTML = '';
+  const thCheck = document.createElement('th');
+  thCheck.className = 'check-col';
+  thCheck.textContent = '✓';
+  tableHead.appendChild(thCheck);
+  visibleIndices.forEach(i => {
+    const th = document.createElement('th');
+    th.textContent = headers[i];
+    tableHead.appendChild(th);
+  });
+
+  tableBody.innerHTML = '';
+  matchedRows.forEach(row => {
+    const tr = document.createElement('tr');
+    const key = hashRowKey(row);
+    if (markedRows.has(key)) tr.classList.add('row-marked');
+
+    const tdCheck = document.createElement('td');
+    tdCheck.className = 'check-col';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.title = 'Marcar como corrigido';
+    checkbox.checked = markedRows.has(key);
+    checkbox.addEventListener('change', () => {
+      if (checkbox.checked) {
+        markedRows.add(key);
+        tr.classList.add('row-marked');
+      } else {
+        markedRows.delete(key);
+        tr.classList.remove('row-marked');
+      }
+      saveMarkedRows();
+    });
+    tdCheck.appendChild(checkbox);
+    tr.appendChild(tdCheck);
+
+    visibleIndices.forEach(i => {
+      const td = document.createElement('td');
+      const val = row[i] !== undefined ? row[i] : '';
+      td.textContent = val;
+      if (i === equipeColIndex) td.classList.add('equipe');
+      tr.appendChild(td);
+    });
+    tableBody.appendChild(tr);
+  });
+}
+
+// Descriptions that are identical except for a number that changes from row
+// to row (e.g. a unit/matrícula code) should be treated as the same
+// inconsistency. We group by the description with every run of digits
+// collapsed to a single placeholder, so "...unidade 8509667 não possui..."
+// and "...unidade 3006298 não possui..." land in the same card.
+function normalizeDescForGrouping(desc) {
+  return desc.trim().toUpperCase().replace(/\d+/g, '#');
+}
+
+function groupRowsByDesc(rows) {
+  const map = new Map();
+  rows.forEach(row => {
+    const raw = row[descColIndex] !== undefined && row[descColIndex] !== null ? row[descColIndex].toString() : '';
+    const label = raw.trim();
+    const key = normalizeDescForGrouping(label);
+    if (!map.has(key)) {
+      // Generic display label: swap the varying number(s) for a placeholder
+      // so the card title reads as the shared pattern, not one specific row.
+      const displayLabel = label ? label.replace(/\d+/g, '####') : '(sem descrição)';
+      map.set(key, { label: displayLabel, rows: [] });
+    }
+    map.get(key).rows.push(row);
+  });
+  return Array.from(map.values());
+}
+
+function groupRowsByServico(rows) {
+  const map = new Map();
+  rows.forEach(row => {
+    const raw = row[servicoColIndex] !== undefined && row[servicoColIndex] !== null ? row[servicoColIndex].toString() : '';
+    const label = raw.trim() || '(sem serviço executado)';
+    if (!map.has(label)) map.set(label, { label, rows: [] });
+    map.get(label).rows.push(row);
+  });
+  return Array.from(map.values());
+}
+
+// Segundo nível: dentro de cada card de inconsistência, um acordeão por
+// serviço executado. Só é usado quando a coluna existe na planilha.
+function renderServiceSubgroups(rows, leafVisibleIndices) {
+  const container = document.createElement('div');
+  container.className = 'servico-subgroups';
+
+  groupRowsByServico(rows).forEach(sub => {
+    const card = document.createElement('div');
+    card.className = 'incons-card servico-card';
+
+    const headBtn = document.createElement('button');
+    headBtn.type = 'button';
+    headBtn.className = 'incons-card-head';
+
+    const title = document.createElement('span');
+    title.className = 'incons-card-title';
+    title.textContent = sub.label;
+
+    const count = document.createElement('span');
+    count.className = 'incons-card-count';
+    count.textContent = sub.rows.length + (sub.rows.length === 1 ? ' ocorrência' : ' ocorrências');
+
+    const toggle = document.createElement('span');
+    toggle.className = 'incons-toggle';
+    toggle.textContent = '+';
+
+    headBtn.appendChild(title);
+    headBtn.appendChild(count);
+    headBtn.appendChild(toggle);
+
+    const body = document.createElement('div');
+    body.className = 'incons-card-body';
+    body.hidden = true;
+
+    const bodyWrap = document.createElement('div');
+    bodyWrap.className = 'table-wrap';
+    bodyWrap.appendChild(buildRowTable(sub.rows, leafVisibleIndices));
+    body.appendChild(bodyWrap);
+
+    headBtn.addEventListener('click', () => {
+      const isOpen = card.classList.toggle('open');
+      body.hidden = !isOpen;
+      toggle.textContent = isOpen ? '×' : '+';
+    });
+
+    card.appendChild(headBtn);
+    card.appendChild(body);
+    container.appendChild(card);
+  });
+
+  return container;
+}
+
+function renderInconsCards(matchedRows, visibleIndices) {
+  const groups = groupRowsByDesc(matchedRows);
+  inconsCards.innerHTML = '';
+
+  // A descrição da inconsistência já aparece no título do card, e o serviço
+  // executado (quando existir) vira o título do sub-card — nenhum dos dois
+  // precisa se repetir como coluna dentro das tabelas de linhas.
+  const leafVisibleIndices = visibleIndices.filter(i => i !== descColIndex && i !== servicoColIndex);
+
+  groups.forEach(group => {
+    const card = document.createElement('div');
+    card.className = 'incons-card';
+
+    const headBtn = document.createElement('button');
+    headBtn.type = 'button';
+    headBtn.className = 'incons-card-head';
+
+    const title = document.createElement('span');
+    title.className = 'incons-card-title';
+    title.textContent = group.label;
+
+    const count = document.createElement('span');
+    count.className = 'incons-card-count';
+    count.textContent = group.rows.length + (group.rows.length === 1 ? ' ocorrência' : ' ocorrências');
+
+    const toggle = document.createElement('span');
+    toggle.className = 'incons-toggle';
+    toggle.textContent = '+';
+
+    headBtn.appendChild(title);
+    headBtn.appendChild(count);
+    headBtn.appendChild(toggle);
+
+    const body = document.createElement('div');
+    body.className = 'incons-card-body';
+    body.hidden = true;
+
+    const bodyWrap = document.createElement('div');
+    bodyWrap.className = 'table-wrap';
+    if (servicoColIndex !== -1) {
+      bodyWrap.appendChild(renderServiceSubgroups(group.rows, leafVisibleIndices));
+    } else {
+      bodyWrap.appendChild(buildRowTable(group.rows, leafVisibleIndices));
+    }
+    body.appendChild(bodyWrap);
+
+    headBtn.addEventListener('click', () => {
+      const isOpen = card.classList.toggle('open');
+      body.hidden = !isOpen;
+      toggle.textContent = isOpen ? '×' : '+';
+    });
+
+    card.appendChild(headBtn);
+    card.appendChild(body);
+    inconsCards.appendChild(card);
+  });
+}
+
+function runFilter() {
+  const teams = selectedTeams;
+  const teamSet = new Set(teams);
+
+  const matchedRows = sheetRows.filter(row => {
+    const cellValue = (row[equipeColIndex] || '').toString().trim().toUpperCase();
+    return teamSet.has(cellValue);
+  });
+
+  const visibleIndices = headers
+    .map((h, i) => i)
+    .filter(i => !HIDDEN_COLUMNS.includes(normalizeHeader(headers[i])));
+
+  resultsPanel.style.display = 'block';
+
+  if (!matchedRows.length) {
+    tableWrap.style.display = 'block';
+    inconsCards.style.display = 'none';
+    resultsMeta.textContent = '0 de ' + sheetRows.length + ' linhas';
+
+    tableHead.innerHTML = '';
+    visibleIndices.forEach(i => {
+      const th = document.createElement('th');
+      th.textContent = headers[i];
+      tableHead.appendChild(th);
+    });
+
+    tableBody.innerHTML = '';
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = visibleIndices.length || 1;
+    td.innerHTML = '<div class="empty-state"><div class="big">—</div>Nenhuma linha corresponde às equipes selecionadas.</div>';
+    tr.appendChild(td);
+    tableBody.appendChild(tr);
+    return;
+  }
+
+  if (descColIndex !== -1) {
+    tableWrap.style.display = 'none';
+    inconsCards.style.display = 'grid';
+    renderInconsCards(matchedRows, visibleIndices);
+  } else {
+    tableWrap.style.display = 'block';
+    inconsCards.style.display = 'none';
+    renderFlatTable(matchedRows, visibleIndices);
+  }
+
+  resultsMeta.textContent = matchedRows.length + ' de ' + sheetRows.length + ' linhas · ' + teamSet.size + ' equipe(s) buscada(s)';
+}
+
+// ---------- Folders (nested, Firestore, real-time) ----------
+// A "pasta" (folder) can contain other pastas (via parentId) and/or a list
+// of equipes (teams) saved directly in it. Navegação estilo "explorer":
+// currentFolderId indica a pasta que está sendo visualizada na grade
+// (null = raiz da biblioteca).
+
+function isMine(item) {
+  // Ownership check: legacy items with no criadoPor are treated as unowned
+  // (nobody can delete them except by editing Firestore directly).
+  return !!(item && currentUser && item.criadoPor && item.criadoPor === currentUser.uid);
+}
+
+function folderChildren(parentId) {
+  return Object.keys(pastasCache)
+    .filter(id => (pastasCache[id].parentId || null) === (parentId || null))
+    .sort((a, b) => (pastasCache[a].nome || '').localeCompare(pastasCache[b].nome || '', 'pt-BR'));
+}
+
+// Returns true when `candidateId` is a descendant (child, grandchild, ...)
+// of `ancestorId`. Used to block drops/moves that would create a cycle.
+function isDescendant(candidateId, ancestorId) {
+  let cur = pastasCache[candidateId];
+  let guard = 0;
+  while (cur && cur.parentId && guard < 50) {
+    if (cur.parentId === ancestorId) return true;
+    cur = pastasCache[cur.parentId];
+    guard++;
+  }
+  return false;
+}
+
+let folderIconCounter = 0;
+function folderIconSvg() {
+  // Ícone "Folder" no mesmo estilo do app do mapa mental (lucide-react),
+  // em contorno âmbar sobre fundo transparente.
+  return '<svg class="folder-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">' +
+    '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>' +
+    '</svg>';
+}
+
+async function moveFolder(draggedId, newParentId) {
+  const f = pastasCache[draggedId];
+  if (!f) return;
+  if (!isMine(f)) {
+    statusEl.textContent = 'Você só pode mover pastas que você criou.';
+    statusEl.style.color = 'var(--warn)';
+    return;
+  }
+  if (newParentId && !isMine(pastasCache[newParentId])) {
+    statusEl.textContent = 'Você só pode mover uma pasta para dentro de pastas que você criou.';
+    statusEl.style.color = 'var(--warn)';
+    return;
+  }
+  if (draggedId === newParentId) return;
+  if (newParentId && isDescendant(newParentId, draggedId)) return;
+  if ((f.parentId || null) === (newParentId || null)) return;
+  try {
+    await setDoc(doc(PASTAS_COLLECTION, draggedId), { ...f, parentId: newParentId || null });
+    statusEl.textContent = 'Pasta "' + (f.nome || '') + '" movida.';
+    statusEl.style.color = 'var(--ok)';
+  } catch (err) {
+    statusEl.textContent = 'Erro ao mover pasta: ' + err.message;
+    statusEl.style.color = 'var(--warn)';
+  }
+}
+
+async function renameFolder(id, newName) {
+  const f = pastasCache[id];
+  if (!f) return;
+  if (!isMine(f)) {
+    statusEl.textContent = 'Só quem criou a pasta pode renomeá-la.';
+    statusEl.style.color = 'var(--warn)';
+    renderLibGrid();
+    return;
+  }
+  const name = newName.trim();
+  if (!name || name === f.nome) { renderLibGrid(); return; }
+  try {
+    await setDoc(doc(PASTAS_COLLECTION, id), { ...f, nome: name });
+  } catch (err) {
+    statusEl.textContent = 'Erro ao renomear pasta: ' + err.message;
+    statusEl.style.color = 'var(--warn)';
+    renderLibGrid();
+  }
+}
+
+async function createFolder(name, parentId) {
+  if (!currentUser) return;
+  if (parentId && !isMine(pastasCache[parentId])) {
+    statusEl.textContent = 'Você só pode criar pastas dentro de pastas que você criou.';
+    statusEl.style.color = 'var(--warn)';
+    return;
+  }
+  newFolderBtn.disabled = true;
+  try {
+    await addDoc(PASTAS_COLLECTION, {
+      nome: name,
+      parentId: parentId || null,
+      equipes: [],
+      criadoPor: currentUser.uid,
+      criadoPorEmail: currentUser.email
+    });
+    statusEl.textContent = 'Pasta "' + name + '" criada.';
+    statusEl.style.color = 'var(--ok)';
+  } catch (err) {
+    statusEl.textContent = 'Erro ao criar pasta: ' + err.message;
+    statusEl.style.color = 'var(--warn)';
+  } finally {
+    newFolderBtn.disabled = false;
+  }
+}
+
+async function deleteFolder(id) {
+  const f = pastasCache[id];
+  if (!f || !isMine(f)) return;
+  try {
+    await deleteDoc(doc(PASTAS_COLLECTION, id));
+    // Detach any subfolders that pointed at this folder — elas viram raiz.
+    const affected = Object.keys(pastasCache).filter(pid => pastasCache[pid].parentId === id);
+    for (const pid of affected) {
+      const p = pastasCache[pid];
+      await setDoc(doc(PASTAS_COLLECTION, pid), { ...p, parentId: null });
+    }
+    if (currentFolderId === id) currentFolderId = f.parentId || null;
+    if (selectedFolderId === id) {
+      selectedFolderId = null;
+      selectedFolderName = '';
+      selectedTeams = [];
+      updateRunState();
+    }
+  } catch (err) {
+    statusEl.textContent = 'Erro ao excluir pasta: ' + err.message;
+    statusEl.style.color = 'var(--warn)';
+  }
+}
+
+// ---- Breadcrumb ----
+function addCrumbDropTarget(el, folderId) {
+  el.addEventListener('dragover', (e) => {
+    if (!draggingFolderId) return;
+    if (draggingFolderId === folderId) return;
+    if (folderId && isDescendant(folderId, draggingFolderId)) return;
+    if (folderId && !isMine(pastasCache[folderId])) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    el.classList.add('drag-over');
+  });
+  el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+  el.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    el.classList.remove('drag-over');
+    const draggedId = draggingFolderId || e.dataTransfer.getData('text/plain');
+    if (!draggedId) return;
+    await moveFolder(draggedId, folderId);
+  });
+}
+
+function renderBreadcrumb() {
+  libBreadcrumb.innerHTML = '';
+
+  const chain = [];
+  let cur = currentFolderId;
+  let guard = 0;
+  while (cur && guard < 50) {
+    const f = pastasCache[cur];
+    if (!f) break;
+    chain.unshift({ id: cur, nome: f.nome || '(sem nome)' });
+    cur = f.parentId || null;
+    guard++;
+  }
+
+  const rootCrumb = document.createElement('button');
+  rootCrumb.type = 'button';
+  rootCrumb.className = 'lib-crumb' + (currentFolderId === null ? ' current' : '');
+  rootCrumb.textContent = 'Pastas';
+  rootCrumb.addEventListener('click', () => {
+    if (currentFolderId !== null) { currentFolderId = null; renderLibrary(); }
+  });
+  addCrumbDropTarget(rootCrumb, null);
+  libBreadcrumb.appendChild(rootCrumb);
+
+  chain.forEach((node, i) => {
+    const sep = document.createElement('span');
+    sep.className = 'lib-crumb-sep';
+    sep.textContent = '/';
+    libBreadcrumb.appendChild(sep);
+
+    const isCurrent = i === chain.length - 1;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'lib-crumb' + (isCurrent ? ' current' : '');
+    btn.textContent = node.nome;
+    btn.addEventListener('click', () => {
+      if (!isCurrent) { currentFolderId = node.id; renderLibrary(); }
+    });
+    addCrumbDropTarget(btn, node.id);
+    libBreadcrumb.appendChild(btn);
+  });
+}
+
+// ---- Rename inline ----
+function startRenameCard(id, nameEl) {
+  const f = pastasCache[id];
+  if (!f || !isMine(f) || nameEl.querySelector('input')) return;
+
+  const original = f.nome || '';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'lib-rename-input';
+  input.value = original;
+  nameEl.textContent = '';
+  nameEl.appendChild(input);
+  input.focus();
+  input.select();
+
+  let settled = false;
+  const finish = async (save) => {
+    if (settled) return;
+    settled = true;
+    if (save && input.value.trim() && input.value.trim() !== original) {
+      await renameFolder(id, input.value);
+    } else {
+      renderLibGrid();
+    }
+  };
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+    if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+  });
+  input.addEventListener('blur', () => finish(true));
+  input.addEventListener('click', (e) => e.stopPropagation());
+  input.addEventListener('mousedown', (e) => e.stopPropagation());
+}
+
+// ---- Delete confirmation modal ----
+function openDeleteModal(id) {
+  const f = pastasCache[id];
+  if (!f) return;
+  pendingDeleteFolderId = id;
+  const hasChildren = folderChildren(id).length > 0;
+  libDeleteText.innerHTML = hasChildren
+    ? 'Excluir a pasta <b>' + escapeHtml(f.nome || '') + '</b>? As subpastas dentro dela vão virar pastas raiz.'
+    : 'Excluir a pasta <b>' + escapeHtml(f.nome || '') + '</b>? Esta ação não pode ser desfeita.';
+  libDeleteOverlay.style.display = 'flex';
+}
+
+function closeDeleteModal() {
+  pendingDeleteFolderId = null;
+  libDeleteOverlay.style.display = 'none';
+}
+
+libDeleteCancel.addEventListener('click', closeDeleteModal);
+libDeleteOverlay.addEventListener('click', (e) => { if (e.target === libDeleteOverlay) closeDeleteModal(); });
+libDeleteConfirm.addEventListener('click', async () => {
+  if (!pendingDeleteFolderId) return;
+  const id = pendingDeleteFolderId;
+  closeDeleteModal();
+  await deleteFolder(id);
+});
+
+// ---- New folder modal ----
+function openNewFolderModal() {
+  const parent = currentFolderId ? pastasCache[currentFolderId] : null;
+  libNewFolderContext.textContent = parent
+    ? 'Dentro de "' + (parent.nome || '') + '".'
+    : '';
+  libNewFolderInput.value = '';
+  libNewFolderOverlay.style.display = 'flex';
+  setTimeout(() => libNewFolderInput.focus(), 0);
+}
+
+function closeNewFolderModal() {
+  libNewFolderOverlay.style.display = 'none';
+}
+
+async function confirmNewFolder() {
+  const name = libNewFolderInput.value.trim();
+  if (!name) { libNewFolderInput.focus(); return; }
+  closeNewFolderModal();
+  await createFolder(name, currentFolderId);
+}
+
+libNewFolderCancel.addEventListener('click', closeNewFolderModal);
+libNewFolderOverlay.addEventListener('click', (e) => { if (e.target === libNewFolderOverlay) closeNewFolderModal(); });
+libNewFolderConfirm.addEventListener('click', confirmNewFolder);
+libNewFolderInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); confirmNewFolder(); }
+  if (e.key === 'Escape') { e.preventDefault(); closeNewFolderModal(); }
+});
+
+// ---- Remove team confirmation modal ----
+function openRemoveTeamModal(folderId, team) {
+  pendingRemoveTeam = { folderId, team };
+  libRemoveTeamText.innerHTML = 'Remover a equipe <b>' + escapeHtml(team) + '</b> desta pasta?';
+  libRemoveTeamOverlay.style.display = 'flex';
+}
+
+function closeRemoveTeamModal() {
+  pendingRemoveTeam = null;
+  libRemoveTeamOverlay.style.display = 'none';
+}
+
+async function confirmRemoveTeam() {
+  if (!pendingRemoveTeam) return;
+  const { folderId, team } = pendingRemoveTeam;
+  closeRemoveTeamModal();
+  const f = pastasCache[folderId];
+  if (!f) return;
+  const newTeams = (f.equipes || []).filter(tt => tt !== team);
+  try {
+    await setDoc(doc(PASTAS_COLLECTION, folderId), { ...f, equipes: newTeams });
+  } catch (err) {
+    statusEl.textContent = 'Erro ao remover equipe: ' + err.message;
+    statusEl.style.color = 'var(--warn)';
+  }
+}
+
+libRemoveTeamCancel.addEventListener('click', closeRemoveTeamModal);
+libRemoveTeamOverlay.addEventListener('click', (e) => { if (e.target === libRemoveTeamOverlay) closeRemoveTeamModal(); });
+libRemoveTeamConfirm.addEventListener('click', confirmRemoveTeam);
+
+// ---- Grid cards ----
+function buildLibCard(id, f) {
+  const mine = isMine(f);
+  const childCount = folderChildren(id).length;
+  const teamCount = (f.equipes || []).length;
+
+  const card = document.createElement('div');
+  card.className = 'lib-card';
+  card.dataset.id = id;
+
+  const icoTemplate = document.createElement('div');
+  icoTemplate.innerHTML = folderIconSvg();
+  card.appendChild(icoTemplate.firstChild);
+
+  const info = document.createElement('div');
+  info.className = 'lib-card-info';
+
+  const nameEl = document.createElement('span');
+  nameEl.className = 'lib-card-name';
+  nameEl.textContent = f.nome || '(sem nome)';
+  info.appendChild(nameEl);
+
+  const meta = document.createElement('div');
+  meta.className = 'lib-card-meta';
+  meta.textContent = childCount
+    ? (childCount + (childCount === 1 ? ' subpasta' : ' subpastas'))
+    : (teamCount + (teamCount === 1 ? ' equipe' : ' equipes'));
+  info.appendChild(meta);
+
+  card.appendChild(info);
+
+  if (mine) {
+    const actions = document.createElement('div');
+    actions.className = 'lib-card-actions';
+
+    const renameBtn = document.createElement('button');
+    renameBtn.type = 'button';
+    renameBtn.title = 'Renomear';
+    renameBtn.textContent = '✎';
+    renameBtn.addEventListener('click', (e) => { e.stopPropagation(); startRenameCard(id, nameEl); });
+
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'lib-del';
+    delBtn.title = 'Excluir';
+    delBtn.textContent = '×';
+    delBtn.addEventListener('click', (e) => { e.stopPropagation(); openDeleteModal(id); });
+
+    actions.appendChild(renameBtn);
+    actions.appendChild(delBtn);
+    card.appendChild(actions);
+
+    card.draggable = true;
+    card.addEventListener('dragstart', (e) => {
+      if (e.target.closest('input')) { e.preventDefault(); return; }
+      draggingFolderId = id;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', id);
+      card.classList.add('dragging');
+    });
+    card.addEventListener('dragend', () => {
+      draggingFolderId = null;
+      card.classList.remove('dragging');
+      document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    });
+  }
+
+  card.addEventListener('dragover', (e) => {
+    if (!draggingFolderId || !mine) return;
+    if (draggingFolderId === id || isDescendant(id, draggingFolderId)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    card.classList.add('drag-over');
+  });
+  card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+  card.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    card.classList.remove('drag-over');
+    const draggedId = draggingFolderId || e.dataTransfer.getData('text/plain');
+    if (!draggedId || draggedId === id) return;
+    await moveFolder(draggedId, id);
+  });
+
+  card.addEventListener('click', (e) => {
+    if (e.target.closest('input') || e.target.closest('.lib-card-actions')) return;
+    currentFolderId = id;
+    renderLibrary();
+  });
+
+  return card;
+}
+
+function renderLibGrid() {
+  libGrid.innerHTML = '';
+  const childIds = folderChildren(currentFolderId);
+  if (!childIds.length) {
+    // Dentro de uma pasta-folha o painel de equipes abaixo já mostra o
+    // estado dela — nenhuma mensagem extra é necessária aqui. Só a raiz,
+    // quando não existe pasta nenhuma ainda, ganha um aviso.
+    if (!currentFolderId) {
+      const empty = document.createElement('div');
+      empty.className = 'lib-empty';
+      empty.textContent = 'Nenhuma pasta criada ainda.';
+      libGrid.appendChild(empty);
+    }
+  } else {
+    childIds.forEach(id => libGrid.appendChild(buildLibCard(id, pastasCache[id])));
+  }
+}
+
+// ---- Teams panel (só aparece quando a pasta atual é "folha", sem subpastas) ----
+function renderLibTeamsPanel() {
+  if (!currentFolderId) { libTeams.style.display = 'none'; return; }
+  const f = pastasCache[currentFolderId];
+  if (!f) { libTeams.style.display = 'none'; return; }
+  const isLeaf = folderChildren(currentFolderId).length === 0;
+  if (!isLeaf) { libTeams.style.display = 'none'; return; }
+
+  libTeams.style.display = 'block';
+  const mine = isMine(f);
+  const teams = f.equipes || [];
+
+  libTeamsList.innerHTML = '';
+  if (!teams.length) {
+    const empty = document.createElement('span');
+    empty.className = 'groups-empty';
+    empty.textContent = 'Nenhuma equipe nesta pasta.';
+    libTeamsList.appendChild(empty);
+  } else {
+    const chips = document.createElement('div');
+    chips.className = 'chips';
+    teams.forEach(t => {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.textContent = t;
+      if (mine) {
+        const x = document.createElement('button');
+        x.type = 'button';
+        x.textContent = ' ×';
+        x.title = 'Remover esta equipe da pasta';
+        x.style.cssText = 'background:none;border:none;color:inherit;cursor:pointer;font-family:inherit;font-size:inherit;padding:0;';
+        x.addEventListener('click', () => openRemoveTeamModal(currentFolderId, t));
+        chip.appendChild(x);
+      }
+      chips.appendChild(chip);
+    });
+    libTeamsList.appendChild(chips);
+  }
+
+  const addRow = libAddTeamInput.closest('.folder-add-team');
+  if (addRow) addRow.style.display = mine ? '' : 'none';
+}
+
+function renderLibrary() {
+  renderBreadcrumb();
+  renderLibGrid();
+  renderLibTeamsPanel();
+  autoApplyFolderFilter();
+}
+
+newFolderBtn.addEventListener('click', () => {
+  if (!currentUser) return;
+  if (currentFolderId && !isMine(pastasCache[currentFolderId])) {
+    statusEl.textContent = 'Você só pode criar pastas dentro de pastas que você criou.';
+    statusEl.style.color = 'var(--warn)';
+    return;
+  }
+  openNewFolderModal();
+});
+
+libAddTeamBtn.addEventListener('click', async () => {
+  if (!currentFolderId) return;
+  const f = pastasCache[currentFolderId];
+  if (!f) return;
+  if (!isMine(f)) {
+    statusEl.textContent = 'Só quem criou a pasta pode adicionar equipes nela.';
+    statusEl.style.color = 'var(--warn)';
+    return;
+  }
+  const newOnes = parseTeams(libAddTeamInput.value);
+  if (!newOnes.length) {
+    statusEl.textContent = 'Digite ao menos uma equipe para adicionar.';
+    statusEl.style.color = 'var(--warn)';
+    libAddTeamInput.focus();
+    return;
+  }
+  const merged = Array.from(new Set([...(f.equipes || []), ...newOnes]));
+  try {
+    await setDoc(doc(PASTAS_COLLECTION, currentFolderId), { ...f, equipes: merged });
+    libAddTeamInput.value = '';
+  } catch (err) {
+    statusEl.textContent = 'Erro ao adicionar equipe(s): ' + err.message;
+    statusEl.style.color = 'var(--warn)';
+  }
+});
+
+libAddTeamInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); libAddTeamBtn.click(); }
+});
+
+// Só é seguro assinar esse listener DEPOIS do login, porque as regras do
+// Firestore exigem request.auth != null para ler a coleção "pastas".
+let foldersUnsub = null;
+
+function subscribeFolders() {
+  if (foldersUnsub) return; // já inscrito, evita duplicar o listener
+  foldersUnsub = onSnapshot(PASTAS_COLLECTION, (snap) => {
+    pastasCache = {};
+    snap.forEach(d => { pastasCache[d.id] = d.data(); });
+    // Se a pasta que estávamos visualizando sumiu (excluída em outra aba),
+    // volta pra raiz da biblioteca.
+    if (currentFolderId && !pastasCache[currentFolderId]) currentFolderId = null;
+    renderLibrary();
+  }, (err) => {
+    libGrid.innerHTML = '<div class="lib-empty">Não foi possível carregar as pastas: ' + err.message + '</div>';
+  });
+}
+
+// ---------- Init ----------
+// Os dados são carregados após o login, veja tryLogin().
+</script>
+
+</body>
+</html>
