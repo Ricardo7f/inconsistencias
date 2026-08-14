@@ -822,6 +822,7 @@ footer {
   inset: 0;
   background: var(--canvas);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   z-index: 100;
@@ -885,6 +886,14 @@ footer {
   min-height: 16px;
   margin: 0 0 10px;
 }
+
+.login-credit {
+  font-family: var(--font);
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  text-align: center;
+  margin-top: 16px;
+}
 </style>
 </head>
 <body>
@@ -898,6 +907,7 @@ footer {
     <input type="password" id="loginPass" placeholder="Senha" autocomplete="current-password">
     <button class="primary" id="loginBtn">Entrar</button>
   </div>
+  <div class="login-credit">Desenvolvido por Marcos Duilio &amp; Ricardo Fontes</div>
 </div>
 
 <div id="appContent" style="display:none;">
